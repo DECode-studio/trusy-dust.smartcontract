@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.30;
 
 /// @title Global Errors for TrustyDust
 /// @notice Digunakan di seluruh modul (core, jobs, reward, identity, dll).

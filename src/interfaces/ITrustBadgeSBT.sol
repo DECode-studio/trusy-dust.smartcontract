@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.30;
 
 /// @title ITrustBadgeSBT
 /// @notice Interface untuk ERC721 Soulbound Badge (Dust / Spark / Flare / Nova).

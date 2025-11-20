@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.30;
 
 /// @title ITrustCore
 /// @notice Interface ke TrustCoreImpl (proxy) untuk fitur trustScore & badge.

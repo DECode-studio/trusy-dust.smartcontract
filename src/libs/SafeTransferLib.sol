@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.30;
 
 /// @title SafeTransferLib
 /// @notice Low-level safe calls untuk ERC20 & native token.
