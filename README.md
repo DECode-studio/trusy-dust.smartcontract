@@ -150,6 +150,29 @@ await verify.verifyTierAndUpdateBadge(proofBytes, 2, "ipfs://tier2.json");
 7) Deploy `TrustVerification` → set verifier Noir + trustCore → jadikan rewardOperator bila perlu update badge.
 8) Atur reward config/tier thresholds sesuai kebutuhan.
 
+### Foundry Script
+- Lihat `script/DeployTrustyDust.s.sol`.
+- Env minimal:
+```
+PRIVATE_KEY=...        # deployer
+OWNER=0x...
+REWARD_OPERATOR=0x...
+AUTHORIZED_CALLER=0x...
+TRUST_BONUS_RECIPIENT=0x...
+TRUST_SCORE_VERIFIER=0x...   # optional
+TIER_VERIFIER=0x...          # optional
+DUST_NAME=Dust
+DUST_SYMBOL=DUST
+BADGE_NAME="Trust Badge"
+BADGE_SYMBOL=TBDGE
+REP_BASE_URI=ipfs://rep/
+```
+- Jalankan:
+```bash
+forge script script/DeployTrustyDust.s.sol --rpc-url $RPC_URL --broadcast
+```
+- Script otomatis deploy: DustToken, TrustBadgeSBT, TrustReputation1155, TrustCoreImpl+Proxy, RewardEngine, EscrowVault, JobMarketplace, TrustVerification; set minter/authorized roles; set marketplace; set verifiers jika disediakan.
+
 ## Environment
 ```
 RPC_URL=...
