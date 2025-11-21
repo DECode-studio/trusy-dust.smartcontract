@@ -4,13 +4,6 @@ pragma solidity ^0.8.20;
 import "forge-std/Test.sol";
 import "../script/DeployTrustyDust.s.sol";
 import {INoirVerifier} from "../src/interfaces/INoirVerifier.sol";
-import {DustToken} from "../src/token/DustToken.sol";
-import {TrustReputation1155} from "../src/identity/TrustReputation1155.sol";
-import {TrustCoreImpl} from "../src/core/TrustCoreImpl.sol";
-import {RewardEngine} from "../src/reward/RewardEngine.sol";
-import {EscrowVault} from "../src/jobs/EscrowVault.sol";
-import {JobMarketplace} from "../src/jobs/JobMarketplace.sol";
-import {TrustVerification} from "../src/verification/TrustVerification.sol";
 
 contract MockVerifier is DeployTrustyDust, INoirVerifier {
     bool public ok = true;
@@ -25,7 +18,6 @@ contract DeploymentFlowTest is Test {
     address owner = address(this);
     address rewardOperator = address(0xBEEF);
     address authorizedCaller = address(0xCAFE);
-    address bonus = address(0xD00D);
 
     function setUp() public {
         deployer = new DeployTrustyDust();
@@ -40,7 +32,6 @@ contract DeploymentFlowTest is Test {
         cfg.owner = owner;
         cfg.rewardOperator = rewardOperator;
         cfg.authorizedCaller = authorizedCaller;
-        cfg.trustBonusRecipient = bonus;
         cfg.verifierTrustScore = address(trustScore);
         cfg.verifierTier = address(tier);
         cfg.dustName = "Dust";
@@ -48,6 +39,9 @@ contract DeploymentFlowTest is Test {
         cfg.badgeName = "TrustBadge";
         cfg.badgeSymbol = "TB";
         cfg.repBaseURI = "ipfs://rep/";
+        cfg.postName = "Post";
+        cfg.postSymbol = "POST";
+        cfg.postBadgeId = 4001;
 
         DeployTrustyDust.Deployed memory d = deployer.deploy(cfg, false);
 
@@ -66,15 +60,18 @@ contract DeploymentFlowTest is Test {
         // RewardEngine config
         assertEq(d.rewardEngine.authorizedCaller(authorizedCaller), true);
 
-        // Job marketplace wiring
+        // Job marketplace wiring (no escrow)
         assertEq(address(d.jobMarket.trustCore()), address(d.core));
-        assertEq(address(d.jobMarket.escrow()), address(d.escrow));
-        assertEq(address(d.escrow.marketplace()), address(d.jobMarket));
-        assertEq(d.escrow.trustBonusRecipient(), bonus);
+        assertEq(address(d.jobMarket.dust()), address(d.dust));
 
         // Verifier wiring
         assertEq(address(d.verifier.trustCore()), address(d.core));
         assertEq(address(d.verifier.trustScoreVerifier()), address(trustScore));
         assertEq(address(d.verifier.tierVerifier()), address(tier));
+
+        // Post NFT
+        assertEq(address(d.postNFT.dust()), address(d.dust));
+        assertEq(address(d.postNFT.reputation1155()), address(d.rep));
+        assertEq(d.postNFT.postBadgeId(), 4001);
     }
 }

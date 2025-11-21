@@ -10,9 +10,10 @@ Dokumentasi lengkap konsumsi kontrak untuk frontend & backend, termasuk fungsi p
 - **Core & Reward**
   - `src/core/TrustCoreImpl.sol` (upgradeable via `TrustCoreProxy`, admin `ProxyAdmin`) — logika inti reward sosial/job, tier helper.
   - `src/reward/RewardEngine.sol` — jalur reward terpisah (sosial, job, DAO) dengan `authorizedCaller`.
-- **Jobs & Escrow**
-  - `src/jobs/JobMarketplace.sol` — job board trust-gated (minScore via Dust balance).
-  - `src/jobs/EscrowVault.sol` — escrow 80% ke worker, 20% ke `trustBonusRecipient`.
+- **Jobs**
+  - `src/jobs/JobMarketplace.sol` — job board trust-gated; poster membayar fee burn 10 DUST saat create, tanpa escrow gaji.
+- **Posts**
+  - `src/identity/PostContentNFT.sol` — ERC721 post; mint membakar 10 DUST dan optional mint achievement 1155.
 - **Verifikasi**
   - `src/verification/TrustVerification.sol` — hubungkan verifier Noir (trust score >= X, tier membership) dan update badge via TrustCore.
 
@@ -59,18 +60,18 @@ Remapping telah diset di `foundry.toml`. Pastikan dependency di `lib/` terpasang
 - Flow: Backend authorizedCaller memanggil; DUST minted via role minter; 1155 minted via authorized.
 
 ### JobMarketplace
-- State: `jobs[jobId]{poster,token,rewardAmount,minScore,worker,status,createdAt}`, `nextJobId`; refs `escrow`, `trustCore`, `reputation1155`.
+- State: `jobs[jobId]{poster,minScore,worker,status,createdAt}`, `nextJobId`; refs `dust`, `trustCore`, `reputation1155`.
 - Fungsi utama:
-  - `createJob(token,rewardAmount,minScore)` → require trustCore/escrow set; lock dana via `escrow.fundJob`.
+  - `createJob(minScore)` → burn fee 10 DUST (kontrak harus minter) → simpan job.
   - `applyToJob(jobId)` → check `trustCore.hasMinTrustScore`.
   - `assignWorker`, `submitWork`, `approveJob(jobId,rating)`, `rejectJob`, `cancelJob`.
   - `_computeScoreDelta(rating)` → 1⭐=20, 2⭐=50, 3⭐=100, 4⭐=150, 5⭐=200.
-- Flow: Poster approve ERC20 → `createJob` → worker apply (event-based) → poster assign → worker submit → poster approve → Escrow release 80/20 + TrustCore.rewardJobCompletion(scoreDelta) + mint achievement 1155.
+- Flow: Poster burn 10 DUST → job OPEN → apply → assign → submit → approve → TrustCore.rewardJobCompletion (reputasi saja, tanpa gaji on-chain) + mint achievement 1155.
 
-### EscrowVault
-- State: `escrows[jobId]{token,poster,amount,funded,released,refunded}`, `marketplace`, `trustBonusRecipient`.
-- Fungsi: `setMarketplace`, `setTrustBonusRecipient`; `fundJob` (only marketplace), `releaseToWorker` (80% ke worker, 20% ke bonus atau balik ke poster jika bonus unset), `refundPoster`.
-- Flow: Dipanggil eksklusif JobMarketplace untuk lock/release/refund.
+### PostContentNFT
+- State: DustToken reference, Reputation1155 reference, `postBadgeId`, `_nextId`, mapping tokenURI.
+- Fungsi: `mintPost(uri)` → burn 10 DUST dari caller → mint ERC721 ke caller → optional `reputation1155.mint` dengan `postBadgeId` jika !=0; `setReputation1155`, `setPostBadgeId`, `tokenURI`.
+- Flow: Caller harus punya 10 DUST; kontrak diset sebagai minter di DustToken & authorized di Rep1155 (bila pakai badge).
 
 ### TrustVerification
 - State: `trustScoreVerifier`, `tierVerifier`, `trustCore`.
@@ -107,20 +108,17 @@ const engine = new ethers.Contract(REWARD_ENGINE, EngineAbi.abi, signer);
 await engine.rewardComment(user);         // +3
 await engine.rewardRecommendation(user);  // +100
 ```
-### Job + Escrow Flow
+### Job Flow (fee burn 10 DUST, tanpa escrow)
 ```ts
 const job = new ethers.Contract(JOB_MARKET, JobAbi.abi, posterSigner);
-const escrow = new ethers.Contract(ESCROW_VAULT, EscrowAbi.abi, posterSigner);
-const erc20 = new ethers.Contract(ERC20_TOKEN, ERC20_ABI, posterSigner);
-
-await erc20.approve(escrow.target, rewardAmount);
-const { logs } = await (await job.createJob(ERC20_TOKEN, rewardAmount, minScore)).wait();
+// Pastikan JobMarketplace diset sebagai minter di DustToken dan poster punya >=10 DUST
+const { logs } = await (await job.createJob(minScore)).wait();
 const jobId = Number(logs[0].args.jobId);
 
 await job.connect(workerSigner).applyToJob(jobId);
 await job.assignWorker(jobId, workerSigner.address);
 await job.connect(workerSigner).submitWork(jobId);
-await job.approveJob(jobId, 5); // release escrow + TrustCore reward
+await job.approveJob(jobId, 5); // reward reputasi via TrustCore
 ```
 ### Verifikasi ZK
 ```ts
@@ -128,12 +126,18 @@ const verify = new ethers.Contract(TRUST_VERIFY, VerifyAbi.abi, userSigner);
 await verify.verifyTrustScoreGeq(proofBytes, 600);
 await verify.verifyTierAndUpdateBadge(proofBytes, 2, "ipfs://tier2.json");
 ```
+### PostContentNFT (burn 10 DUST per post)
+```ts
+const post = new ethers.Contract(POST_NFT, PostAbi.abi, userSigner);
+// Pastikan PostContentNFT diset sebagai minter di DustToken dan user punya >=10 DUST
+await post.mintPost("ipfs://post/123"); // burn 10 DUST + mint ERC721 (+ optional 1155 badge)
+```
 
 ## Implementasi Frontend
 - **Read**: `getTrustScore`, `getTier`, `DustToken.balanceOf`, `TrustBadgeSBT.getBadgeData`, `TrustReputation1155.balanceOf`, `jobs(jobId)`, event `JobCreated/Assigned/Submitted/Approved/Cancelled`.
 - **Write**:
   - Worker: `applyToJob`, `submitWork`.
-  - Poster: `createJob` (butuh allowance ERC20 ke escrow), `assignWorker`, `approveJob`, `rejectJob`, `cancelJob`.
+  - Poster: `createJob` (membakar 10 DUST; poster harus punya saldo dan JobMarketplace sudah jadi minter), `assignWorker`, `approveJob`, `rejectJob`, `cancelJob`.
   - Proof: `verifyTrustScoreGeq`, `verifyTierAndUpdateBadge`.
   - Badge metadata disiapkan backend; frontend kirim proof + metadata URI terpilih.
 
@@ -158,7 +162,6 @@ PRIVATE_KEY=...        # deployer
 OWNER=0x...
 REWARD_OPERATOR=0x...
 AUTHORIZED_CALLER=0x...
-TRUST_BONUS_RECIPIENT=0x...
 TRUST_SCORE_VERIFIER=0x...   # optional
 TIER_VERIFIER=0x...          # optional
 DUST_NAME=Dust
@@ -166,12 +169,15 @@ DUST_SYMBOL=DUST
 BADGE_NAME="Trust Badge"
 BADGE_SYMBOL=TBDGE
 REP_BASE_URI=ipfs://rep/
+POST_NAME=Post
+POST_SYMBOL=POST
+POST_BADGE_ID=4001
 ```
 - Jalankan:
 ```bash
 forge script script/DeployTrustyDust.s.sol --rpc-url $RPC_URL --broadcast
 ```
-- Script otomatis deploy: DustToken, TrustBadgeSBT, TrustReputation1155, TrustCoreImpl+Proxy, RewardEngine, EscrowVault, JobMarketplace, TrustVerification; set minter/authorized roles; set marketplace; set verifiers jika disediakan.
+- Script otomatis deploy: DustToken, TrustBadgeSBT, TrustReputation1155, TrustCoreImpl+Proxy, RewardEngine, JobMarketplace (fee burn), TrustVerification, PostContentNFT; set minter/authorized roles; set verifiers jika disediakan.
 
 ## Environment
 ```
@@ -183,9 +189,9 @@ TRUST_BADGE=0x...
 TRUST_REP1155=0x...
 REWARD_ENGINE=0x...
 JOB_MARKET=0x...
-ESCROW_VAULT=0x...
 TRUST_VERIFY=0x...
-ERC20_REWARD_TOKEN=0x...          # token untuk job reward
+POST_NFT=0x...
+ERC20_REWARD_TOKEN=0x...          # optional placeholder
 ```
 
 ## Tips Keamanan & Operasional
@@ -207,11 +213,10 @@ ERC20_REWARD_TOKEN=0x...          # token untuk job reward
        └─emit event (SocialReward / ExtraReward / JobReward)
 ```
 
-### Job + Escrow + Reward
+### Job (fee burn) + Reward
 ```
 [Poster]
-   ├─approve ERC20 to EscrowVault
-   └─createJob(token, reward, minScore) -> EscrowVault.fundJob (lock funds)
+   └─createJob(minScore) -> burn 10 DUST (contract as minter)
         └─Event JobCreated
 
 [Worker]
@@ -225,11 +230,19 @@ ERC20_REWARD_TOKEN=0x...          # token untuk job reward
 
 [Poster]
    └─approveJob(rating)
-        ├─EscrowVault.releaseToWorker (80% worker / 20% bonus)
-        ├─TrustCore.rewardJobCompletion(scoreDelta from rating)
+        ├─TrustCore.rewardJobCompletion(scoreDelta from rating) (reputasi DUST)
         ├─Reputation1155.mint achievement
         └─Event JobApproved
-   (or rejectJob -> back to ASSIGNED; or cancelJob -> EscrowVault.refundPoster)
+   (or rejectJob -> back to ASSIGNED; or cancelJob -> status CANCELLED)
+```
+
+### PostContentNFT (burn 10 DUST)
+```
+[User]
+   └─mintPost(uri) -> burn 10 DUST (contract as minter)
+        ├─mint ERC721 post to user
+        ├─optional Reputation1155.mint(postBadgeId)
+        └─Event PostMinted
 ```
 
 ### ZK Verification + Badge Update

@@ -13,13 +13,7 @@ abstract contract JobEvents {
         CANCELLED
     }
 
-    event JobCreated(
-        uint256 indexed jobId,
-        address indexed poster,
-        address token,
-        uint256 rewardAmount,
-        uint256 minScore
-    );
+    event JobCreated(uint256 indexed jobId, address indexed poster, uint256 minScore);
 
     event JobApplied(uint256 indexed jobId, address indexed worker);
 

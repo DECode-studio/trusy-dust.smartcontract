@@ -9,9 +9,9 @@ import {TrustReputation1155} from "../src/identity/TrustReputation1155.sol";
 import {TrustCoreImpl} from "../src/core/TrustCoreImpl.sol";
 import {TrustCoreProxy} from "../src/core/TrustCoreProxy.sol";
 import {RewardEngine} from "../src/reward/RewardEngine.sol";
-import {EscrowVault} from "../src/jobs/EscrowVault.sol";
 import {JobMarketplace} from "../src/jobs/JobMarketplace.sol";
 import {TrustVerification} from "../src/verification/TrustVerification.sol";
+import {PostContentNFT} from "../src/identity/PostContentNFT.sol";
 
 /// @notice Deployment script TrustyDust, reusable untuk test/integration.
 contract DeployTrustyDust is Script {
@@ -20,7 +20,6 @@ contract DeployTrustyDust is Script {
         address owner;
         address rewardOperator;
         address authorizedCaller;
-        address trustBonusRecipient;
         address verifierTrustScore;
         address verifierTier;
         string dustName;
@@ -28,6 +27,9 @@ contract DeployTrustyDust is Script {
         string badgeName;
         string badgeSymbol;
         string repBaseURI;
+        string postName;
+        string postSymbol;
+        uint256 postBadgeId;
     }
 
     struct Deployed {
@@ -37,9 +39,9 @@ contract DeployTrustyDust is Script {
         TrustCoreImpl core;
         TrustCoreProxy proxy;
         RewardEngine rewardEngine;
-        EscrowVault escrow;
         JobMarketplace jobMarket;
         TrustVerification verifier;
+        PostContentNFT postNFT;
     }
 
     function run() external {
@@ -88,14 +90,21 @@ contract DeployTrustyDust is Script {
             address(d.rep)
         );
 
-        d.escrow = new EscrowVault(cfg.owner, cfg.trustBonusRecipient);
         d.jobMarket = new JobMarketplace(
             cfg.owner,
+            address(d.dust),
             address(d.core),
-            address(d.escrow),
             address(d.rep)
         );
-        d.escrow.setMarketplace(address(d.jobMarket));
+
+        d.postNFT = new PostContentNFT(
+            cfg.postName,
+            cfg.postSymbol,
+            cfg.owner,
+            address(d.dust),
+            address(d.rep),
+            cfg.postBadgeId
+        );
 
         d.verifier = new TrustVerification(cfg.owner, address(d.core));
         if (cfg.verifierTrustScore != address(0)) {
@@ -108,8 +117,12 @@ contract DeployTrustyDust is Script {
         // Role wiring
         d.dust.setMinter(address(d.core), true);
         d.dust.setMinter(address(d.rewardEngine), true);
+        d.dust.setMinter(address(d.jobMarket), true);
+        d.dust.setMinter(address(d.postNFT), true);
         d.rep.setAuthorized(address(d.core), true);
         d.rep.setAuthorized(address(d.rewardEngine), true);
+        d.rep.setAuthorized(address(d.jobMarket), true);
+        d.rep.setAuthorized(address(d.postNFT), true);
 
         if (cfg.rewardOperator != address(0) && cfg.rewardOperator != cfg.owner) {
             // rewardOperator ditetapkan saat inisialisasi TrustCore
@@ -130,9 +143,9 @@ contract DeployTrustyDust is Script {
         console2.log("TrustCoreImpl   :", address(impl));
         console2.log("TrustCoreProxy  :", address(d.proxy));
         console2.log("RewardEngine    :", address(d.rewardEngine));
-        console2.log("EscrowVault     :", address(d.escrow));
         console2.log("JobMarketplace  :", address(d.jobMarket));
         console2.log("TrustVerification:", address(d.verifier));
+        console2.log("PostContentNFT  :", address(d.postNFT));
     }
 
     function loadConfig() internal view returns (Config memory cfg) {
@@ -146,10 +159,6 @@ contract DeployTrustyDust is Script {
             "AUTHORIZED_CALLER",
             vm.envAddress("OWNER")
         );
-        cfg.trustBonusRecipient = vm.envOr(
-            "TRUST_BONUS_RECIPIENT",
-            vm.envAddress("OWNER")
-        );
         cfg.verifierTrustScore = vm.envOr("TRUST_SCORE_VERIFIER", address(0));
         cfg.verifierTier = vm.envOr("TIER_VERIFIER", address(0));
         cfg.dustName = vm.envOr("DUST_NAME", string("Dust"));
@@ -157,5 +166,8 @@ contract DeployTrustyDust is Script {
         cfg.badgeName = vm.envOr("BADGE_NAME", string("Trust Badge"));
         cfg.badgeSymbol = vm.envOr("BADGE_SYMBOL", string("TBDGE"));
         cfg.repBaseURI = vm.envOr("REP_BASE_URI", string("ipfs://rep/"));
+        cfg.postName = vm.envOr("POST_NAME", string("Post"));
+        cfg.postSymbol = vm.envOr("POST_SYMBOL", string("POST"));
+        cfg.postBadgeId = vm.envOr("POST_BADGE_ID", uint256(4001));
     }
 }
