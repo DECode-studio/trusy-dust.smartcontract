@@ -1,42 +1,43 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.30;
 
 import "forge-std/Test.sol";
-import {DustToken} from "../src/token/DustToken.sol";
-import {TokenErrors} from "../src/token/TokenErrors.sol";
+import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
+import {DustToken} from "src/DustToken.sol";
+import {Errors} from "src/Errors.sol";
 
 contract DustTokenTest is Test {
-    DustToken internal token;
-    address internal owner = address(0xAAA);
-    address internal minter = address(0xBEEF);
-    address internal user = address(0xCAFE);
+    DustToken internal dust;
+    address internal alice = address(0xA11CE);
+    address internal bob = address(0xB0B);
 
     function setUp() public {
-        vm.prank(owner);
-        token = new DustToken("Dust", "DUST", owner);
+        dust = new DustToken("Dust", "DUST", address(this));
+        dust.mint(alice, 100e18);
     }
 
-    function testOwnerCanSetMinterAndMintBurn() public {
-        vm.prank(owner);
-        token.setMinter(minter, true);
-
-        vm.prank(minter);
-        token.mint(user, 100);
-        assertEq(token.balanceOf(user), 100);
-
-        vm.prank(minter);
-        token.burn(user, 40);
-        assertEq(token.balanceOf(user), 60);
+    function testTransfer() public {
+        vm.prank(alice);
+        vm.expectRevert(bytes("DUST: NON TRANSFERABLE"));
+        dust.transfer(bob, 10e18);
     }
 
-    function testNonMinterCannotMint() public {
-        vm.expectRevert(TokenErrors.NotMinter.selector);
-        token.mint(user, 1);
+    function testTransferRevertZero() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(IERC20Errors.ERC20InvalidReceiver.selector, address(0))
+        );
+        vm.prank(alice);
+        dust.transfer(address(0), 1);
+        assertEq(dust.balanceOf(alice), 100e18);
     }
 
-    function testOwnerMintZeroAddressReverts() public {
-        vm.prank(owner);
-        vm.expectRevert(TokenErrors.ZeroAddress.selector);
-        token.ownerMint(address(0), 1);
+    function testBurn() public {
+        dust.burn(alice, 50e18);
+        assertEq(dust.balanceOf(alice), 50e18);
+    }
+
+    function testBurnRevertInsufficient() public {
+        vm.expectRevert();
+        dust.burn(alice, 200e18);
     }
 }

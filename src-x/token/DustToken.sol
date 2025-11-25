@@ -2,6 +2,7 @@
 pragma solidity ^0.8.30;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IDustToken} from "../interfaces/IDustToken.sol";
@@ -27,6 +28,23 @@ contract DustToken is ERC20, Ownable, IDustToken {
     }
 
     // ========= MODIFIER =========
+
+    // Override transfer → hanya owner yang bisa kirim
+    function transfer(
+        address to,
+        uint256 amount
+    ) public virtual override(ERC20, IERC20) onlyOwner returns (bool) {
+        return super.transfer(to, amount);
+    }
+
+    // Override transferFrom juga (biar tidak bisa di-bypass)
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) public virtual override(ERC20, IERC20) onlyOwner returns (bool) {
+        return super.transferFrom(from, to, amount);
+    }
 
     modifier onlyMinter() {
         if (!isMinter[msg.sender]) revert TokenErrors.NotMinter();
