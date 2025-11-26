@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-import "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {Identity} from "src/Identity.sol";
 import {DustToken} from "src/DustToken.sol";
 import {Content} from "src/Content.sol";
-import {Errors} from "src/Errors.sol";
 
 contract ContentTest is Test {
     Identity internal identity;

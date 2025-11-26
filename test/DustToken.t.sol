@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-import "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {DustToken} from "src/DustToken.sol";
-import {Errors} from "src/Errors.sol";
 
 contract DustTokenTest is Test {
     DustToken internal dust;
@@ -19,15 +18,20 @@ contract DustTokenTest is Test {
     function testTransfer() public {
         vm.prank(alice);
         vm.expectRevert(bytes("DUST: NON TRANSFERABLE"));
-        dust.transfer(bob, 10e18);
+        bool success = dust.transfer(bob, 10e18);
+        success;
     }
 
     function testTransferRevertZero() public {
         vm.expectRevert(
-            abi.encodeWithSelector(IERC20Errors.ERC20InvalidReceiver.selector, address(0))
+            abi.encodeWithSelector(
+                IERC20Errors.ERC20InvalidReceiver.selector,
+                address(0)
+            )
         );
         vm.prank(alice);
-        dust.transfer(address(0), 1);
+        bool successZero = dust.transfer(address(0), 1);
+        successZero;
         assertEq(dust.balanceOf(alice), 100e18);
     }
 

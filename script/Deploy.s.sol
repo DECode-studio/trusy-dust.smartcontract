@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "forge-std/Script.sol";
+import {Script, console2} from "forge-std/Script.sol";
 import {DustToken} from "src/DustToken.sol";
 import {Identity} from "src/Identity.sol";
 import {Core} from "src/Core.sol";

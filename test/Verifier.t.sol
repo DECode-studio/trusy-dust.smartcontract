@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-import "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {Identity} from "src/Identity.sol";
 import {Verifier, IExternalVerifier} from "src/Verifier.sol";
 

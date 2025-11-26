@@ -24,11 +24,15 @@ contract DustToken is ERC20 {
     }
 
     modifier onlyRole(Role requiredRole) {
+        _onlyRole(requiredRole);
+        _;
+    }
+
+    function _onlyRole(Role requiredRole) internal view {
         Role r = roles[msg.sender];
         if (r != requiredRole && r != Role.OWNER) {
             revert Errors.Unauthorized();
         }
-        _;
     }
 
     function setRole(address user, Role role) external onlyRole(Role.OWNER) {

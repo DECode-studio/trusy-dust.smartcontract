@@ -3,8 +3,6 @@ pragma solidity ^0.8.30;
 
 import {Identity} from "./Identity.sol";
 import {DustToken} from "./DustToken.sol";
-import {SharedTypes} from "./SharedTypes.sol";
-import {Errors} from "./Errors.sol";
 
 /// @notice Simplified content/post minting that burns DUST and updates identity stats.
 contract Content {

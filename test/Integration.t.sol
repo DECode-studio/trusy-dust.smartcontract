@@ -1,15 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-import "forge-std/Test.sol";
-import "./Base.t.sol";
+import {Test} from "forge-std/Test.sol";
+import {BaseTest} from "./Base.t.sol";
 import {SharedTypes} from "src/SharedTypes.sol";
 import {Errors} from "src/Errors.sol";
+import {IExternalVerifier} from "src/Verifier.sol";
 
-contract MockExternalVerifier is IExternalVerifier {
+contract MockExternalVerifier is IExternalVerifier, Test {
     bool public result = true;
-    function setResult(bool r) external { result = r; }
-    function verify(bytes calldata, bytes32[] calldata) external view returns (bool) { return result; }
+
+    function setResult(bool r) external {
+        result = r;
+    }
+
+    function verify(
+        bytes calldata,
+        bytes32[] calldata
+    ) external view returns (bool) {
+        return result;
+    }
 }
 
 contract IntegrationTest is BaseTest {
@@ -38,7 +48,7 @@ contract IntegrationTest is BaseTest {
         vm.prank(poster);
         jobs.approveJob(jobId, 4);
 
-        (uint256 trust,, , , uint256 jobsCompleted,) = identity.users(worker);
+        (uint256 trust, , , , uint256 jobsCompleted, ) = identity.users(worker);
         assertEq(trust, 150e18);
         assertEq(jobsCompleted, 1);
         assertEq(dust.balanceOf(worker), 1_150e18);
@@ -52,7 +62,7 @@ contract IntegrationTest is BaseTest {
         core.rewardSocial(user, uint8(SharedTypes.SocialAction.COMMENT));
         core.rewardSocial(user, uint8(SharedTypes.SocialAction.REPOST));
 
-        (uint256 trust,,,,,) = identity.users(user);
+        (uint256 trust, , , , , ) = identity.users(user);
         assertEq(trust, 5e18);
         assertEq(dust.balanceOf(user), 1_005e18);
     }
@@ -65,7 +75,7 @@ contract IntegrationTest is BaseTest {
         content.mintPost("ipfs://2");
 
         core.rewardJob(user, 5); // +200e18
-        (,, , uint256 posts,,) = identity.users(user);
+        (, , , uint256 posts, , ) = identity.users(user);
         assertEq(posts, 2);
         assertEq(dust.balanceOf(user), 1_200e18);
     }
@@ -81,7 +91,7 @@ contract IntegrationTest is BaseTest {
     function testVerifierTierUpdate() public {
         bool ok = verifier.verifyTier(hex"01", 3, 500);
         assertTrue(ok);
-        (, uint256 tier,,,,bool hasBadge) = identity.users(address(this));
+        (, uint256 tier, , , , bool hasBadge) = identity.users(address(this));
         assertEq(tier, 3);
         assertTrue(hasBadge);
     }

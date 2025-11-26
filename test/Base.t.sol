@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-import "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {DustToken} from "src/DustToken.sol";
 import {Identity} from "src/Identity.sol";
 import {Core} from "src/Core.sol";
 import {Content} from "src/Content.sol";
 import {Jobs} from "src/Jobs.sol";
-import {Verifier, IExternalVerifier} from "src/Verifier.sol";
+import {Verifier} from "src/Verifier.sol";
 
 contract BaseTest is Test {
     address internal user1 = address(0xA11CE);
